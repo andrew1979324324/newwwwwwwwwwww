@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a73e8">
+    
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <title>Gestione Lavoro Pro 2026</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f0f2f5; color: #333; margin: 0; padding-bottom: 50px; }
+        
+        /* Testata con Logo */
+        .app-header {
+            background: #1a73e8;
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .app-header img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: white;
+            padding: 2px;
+        }
+        .app-header h1 { margin: 0; font-size: 1.4rem; background: none; box-shadow: none; padding: 0; }
+
+        #controls { margin: 15px; background: white; display: inline-block; padding: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        #calendar-container { max-width: 95%; margin: 0 auto; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; font-weight: bold; margin-bottom: 10px; color: #5f6368; font-size: 0.8rem; }
+        #calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day { background: #fff; border: 1px solid #e0e0e0; padding: 5px; border-radius: 8px; cursor: pointer; min-height: 60px; transition: 0.3s; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; font-size: 10px; overflow: hidden; }
+        .day:hover:not(.empty) { background: #f1f3f4; }
+        .empty { background: #f8f9fa; border: none; cursor: default; }
+        .day-number { font-weight: bold; font-size: 12px; margin-bottom: 2px; }
+        
+        #formBox, #summaryBox, #annualBox { display:none; position: fixed; top: 5%; left: 5%; width: 90%; max-height: 85vh; background:white; z-index: 1000; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: left; overflow-y: auto; }
+        
+        select, input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #dadce0; border-radius: 8px; font-size: 16px; }
+        button { padding: 12px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 5px 0; width: 100%; font-size: 14px; }
+        
+        .btn-save { background: #1a73e8; color: white; }
+        .btn-copy { background: #34a853; color: white; }
+        .btn-paste { background: #fbbc04; color: black; }
+        .btn-delete { background: #ea4335; color: white; }
+        .btn-excel { background: #1d6f42; color: white; width: auto; font-size: 11px; padding: 5px 10px; }
+        .btn-excel-main { background: #1d6f42; color: white; }
+        .btn-close { background: #5f6368; color: white; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+        .row-service { font-weight: bold; display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius:6px; margin-top:10px; font-size: 13px; }
+        .total-final { background: #333; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <img src="logo.png" alt="Logo" onerror="this.style.display='none'">
+    <h1>Gestione Lavoro Pro</h1>
+</div>
+
+<div id="controls">
+    <label>Mese:</label>
+    <select id="monthSelect" style="width: auto;"></select>
+    <label> 2026</label>
+</div>
+
+<div id="calendar-container">
+    <div id="week-days"><div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div>Sab</div><div>Dom</div></div>
+    <div id="calendar"></div>
+</div>
+
+<div style="margin: 20px 10px;">
+    <button class="btn-save" onclick="showSummary()">📊 Consuntivo & Export</button>
+    <button class="btn-copy" onclick="showAnnualSummary()">📈 Statistiche Annuali</button>
+</div>
+
+<div id="formBox">
+    <h3 id="selectedDate" style="margin-top:0;"></h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button class="btn-copy" onclick="copyData()">📋 Copia</button>
+        <button id="pasteBtn" class="btn-paste" onclick="pasteData()" style="display:none;">📥 Incolla</button>
+    </div>
+    <label>Società</label><select id="client"></select>
+    <label>Location</label><select id="location"></select>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div><label>Inizio</label><select id="startTime"></select></div>
+        <div><label>Fine</label><select id="endTime"></select></div>
+    </div>
+    <label>Pausa pranzo</label>
+    <select id="lunchBreak"><option value="si">Sì</option><option value="no">No</option></select>
+    <div id="dayLiveRes" style="padding:10px; background:#e8f0fe; border-radius:5px; margin-top:10px; font-weight:bold; font-size: 14px;"></div>
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+    <button class="btn-save" onclick="saveData()">💾 Salva</button>
+    <button id="deleteBtn" class="btn-delete" onclick="deleteData()">🗑️ Elimina</button>
+    <button class="btn-close" onclick="closeAll()">Chiudi</button>
+</div>
+
+<div id="summaryBox">
+    <h3 id="summaryTitle">Consuntivo</h3>
+    <div id="summaryContent"></div>
+    <div style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 15px;">
+        <button class="btn-excel-main" onclick="exportDetailedExcel('tutti')">💾 Esporta CSV Mese (Excel)</button>
+        <button class="btn-close" onclick="closeAll()">Chiudi</button>
+    </div>
+</div>
+
+<div id="annualBox">
+    <h3>Statistiche 2026</h3>
+    <div id="annualContent"></div>
+    <button class="btn-close" onclick="closeAll()">Chiudi</button>
+</div>
+
+<script>
+// Elenco Società
+const companies = ["Anteprima Video","Airone","Av Set","B-Nomio","Centro Pilota","Ciccarelli","Dafral Soundvision","De Simoni","Digital Network","DHS","F.A.R.E. Servizi","Gruppo Planet","HRC","Ifet","Livon","Lvs","Milani group","Mondialtecnica","Niutek","Onegroup","Sincronismi","Studiovisio","TCS 2000","Tecnoconference Roma","Tecnomeeting","Vms"];
+
+// Elenco Location (Hotel Villa Pamphili aggiunta)
+const locations = ["Anantara","Angelicum","A. Roma Lifestyle","Acquario Romano","Auditorium P.d. Musica","Bernini Bristol","H. Massimo d'Azeglio","Cardo Roma","Chiostro Del Bramante","Don Giovanni (Praga)","Fao","Hotel Vanvitelli","Ergife Palace Hotel","Esperienza Europa","Eurostars Roma Aeterna","Fiera di Bologna","Hotel D. Camilla Savelli","H. Barcelò Mantegna","H. Bulgari","H. Dei Mellini","H. Le Merdien Visconti","H. Parco de Principi","Hotel Plaza","Holiday Inn Rome","H. Rome Airport","H. Rome Eur La Lama","H. Nazionale","H. Ripa","Hotel Villa Pamphili","Boutique Calzavecchio","MOMEC","Nhow","Nh Centro","Nh Villa Carpegna","Nh Giustiniano","La Nuvola","Palazzo dell'INPS","Parlamento Europeo Italia","Rome Marriot P.H.","Rome Cavalieri","Salone delle Fontane","S. Rome P. De' Medici","StarHotels Metropole","Starhotels Excelsior (Bo)","StarHotels Michelangelo (Fi)","Spazio 900","Spazio Sette Libreria","The Hive Hotel","The Westin Warsaw","The Westin Excelsior Rome","The St. Regis Rome","The Space Cinema Moderno","Tempio di Adriano","Villa Miani","Studio Curtis","Villa Madama"];
+
+const months = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+
+let currentMonth = new Date().getMonth();
+let currentYear = 2026;
+let clipboard = null;
+
+const clientSel = document.getElementById("client");
+const locSel = document.getElementById("location");
+const startSel = document.getElementById("startTime");
+const endSel = document.getElementById("endTime");
+const lunchSel = document.getElementById("lunchBreak");
+const monthSel = document.getElementById("monthSelect");
+
+// Popolamento select
+companies.sort().forEach(c => clientSel.add(new Option(c, c)));
+locations.sort().forEach(l => locSel.add(new Option(l, l)));
+months.forEach((m, i) => monthSel.add(new Option(m, i)));
+monthSel.value = currentMonth;
+
+for(let h=0; h<24; h++) {
+    ["00","30"].forEach(m => {
+        let val = `${h.toString().padStart(2,'0')}:${m}`;
+        startSel.add(new Option(val, val));
+        endSel.add(new Option(val, val));
+    });
+}
+
+function getColorForCompany(name){
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return `hsl(${hash % 360},70%,85%)`;
+}
+
+function getBorderColor(name){
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return `hsl(${hash % 360},70%,45%)`;
+}
+
+function getStats(start, end, lunch) {
+    const s = new Date(`1970-01-01T${start}`);
+    const e = new Date(`1970-01-01T${end}`);
+    let diff = (e - s) / (1000 * 60 * 60);
+    if (diff < 0) diff += 24;
+    const soglia = lunch === 'no' ? 8 : 9;
+    const stra = Math.max(0, diff - soglia);
+    const lordo = 250 + (stra * 25);
+    return { ore: diff, stra: stra, lordo: lordo, netto: lordo * 0.74 };
+}
+
+function renderCalendar() {
+    const cal = document.getElementById("calendar"); cal.innerHTML = "";
+    currentMonth = parseInt(monthSel.value);
+    let firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    let offset = firstDay === 0 ? 6 : firstDay - 1;
+    let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    for(let i=0; i<offset; i++) cal.appendChild(Object.assign(document.createElement("div"), {className: "day empty"}));
+    for(let i=1; i<=daysInMonth; i++) {
+        const key = `${currentYear}-${currentMonth+1}-${i}`;
+        const data = JSON.parse(localStorage.getItem(key));
+        const div = document.createElement("div");
+        div.className = "day";
+        div.onclick = () => openDay(i);
+        div.innerHTML = `<div class="day-number">${i}</div>`;
+        if(data) {
+            div.style.background = getColorForCompany(data.client);
+            div.style.borderLeft = `4px solid ${getBorderColor(data.client)}`;
+            div.innerHTML += `<div style="font-weight:bold; line-height:1;">${data.client.substring(0,8)}..</div>`;
+        }
+        cal.appendChild(div);
+    }
+}
+
+function openDay(day) {
+    const key = `${currentYear}-${currentMonth+1}-${day}`;
+    document.getElementById("formBox").style.display = "block";
+    document.getElementById("formBox").dataset.key = key;
+    document.getElementById("selectedDate").innerText = `${day} ${months[currentMonth]} 2026`;
+    const data = JSON.parse(localStorage.getItem(key));
+    if(data) {
+        clientSel.value = data.client; locSel.value = data.location;
+        startSel.value = data.startTime; endSel.value = data.endTime;
+        lunchSel.value = data.lunchBreak || 'si';
+        document.getElementById("deleteBtn").style.display = "block";
+    } else {
+        startSel.value = "08:00"; endSel.value = "17:00"; lunchSel.value = 'si';
+        document.getElementById("deleteBtn").style.display = "none";
+    }
+    updateLiveRes();
+}
+
+function updateLiveRes() {
+    const res = getStats(startSel.value, endSel.value, lunchSel.value);
+    document.getElementById("dayLiveRes").innerText = `Lordo: €${res.lordo.toFixed(2)} (${res.stra.toFixed(1)}h stra.)`;
+}
+
+startSel.onchange = updateLiveRes; endSel.onchange = updateLiveRes; lunchSel.onchange = updateLiveRes;
+
+function saveData() {
+    localStorage.setItem(document.getElementById("formBox").dataset.key, JSON.stringify({ 
+        client: clientSel.value, location: locSel.value, startTime: startSel.value, endTime: endSel.value, lunchBreak: lunchSel.value 
+    }));
+    closeAll(); renderCalendar();
+}
+
+function deleteData() { if(confirm("Eliminare questa giornata?")) { localStorage.removeItem(document.getElementById("formBox").dataset.key); closeAll(); renderCalendar(); } }
+function copyData() { clipboard = { client: clientSel.value, location: locSel.value, startTime: startSel.value, endTime: endSel.value, lunchBreak: lunchSel.value }; document.getElementById("pasteBtn").style.display = "block"; }
+function pasteData() { if(clipboard) { clientSel.value = clipboard.client; locSel.value = clipboard.location; startSel.value = clipboard.startTime; endSel.value = clipboard.endTime; lunchSel.value = clipboard.lunchBreak || 'si'; updateLiveRes(); } }
+function closeAll() { document.getElementById("formBox").style.display = "none"; document.getElementById("summaryBox").style.display = "none"; document.getElementById("annualBox").style.display = "none"; }
+
+function showSummary() {
+    closeAll(); const dataByService = {}; let grandLordo = 0;
+    for (let i = 1; i <= 31; i++) {
+        const key = `${currentYear}-${currentMonth+1}-${i}`;
+        const item = JSON.parse(localStorage.getItem(key));
+        if (item) { if (!dataByService[item.client]) dataByService[item.client] = []; dataByService[item.client].push({ giorno: i, ...item }); }
+    }
+    let html = "";
+    if (Object.keys(dataByService).length === 0) html = "<p>Nessun dato questo mese.</p>";
+    else {
+        for (let service in dataByService) {
+            html += `<div class="row-service" style="background:${getColorForCompany(service)}; border-left:8px solid ${getBorderColor(service)};">
+                        <span>${service}</span>
+                        <button class="btn-excel" onclick="exportDetailedExcel('${service.replace(/'/g, "\\'")}')">CSV</button>
+                     </div>
+                     <table><tr><th>G</th><th>Loc</th><th>Stra</th><th>Lordo</th></tr>`;
+            let subLordo = 0;
+            dataByService[service].forEach(d => {
+                const s = getStats(d.startTime, d.endTime, d.lunchBreak);
+                html += `<tr><td>${d.giorno}</td><td>${d.location.substring(0,10)}</td><td>${s.stra.toFixed(1)}</td><td>€${s.lordo.toFixed(0)}</td></tr>`;
+                subLordo += s.lordo;
+            });
+            html += `<tr style="font-weight:bold;"><td colspan="3">TOTALE</td><td>€${subLordo.toFixed(2)}</td></tr></table>`;
+            grandLordo += subLordo;
+        }
+        html += `<div class="total-final" style="margin-top:20px; padding:15px; border-radius:8px;">TOTALE GENERALE: €${grandLordo.toFixed(2)}</div>`;
+    }
+    document.getElementById("summaryTitle").innerText = `Consuntivo ${months[currentMonth]}`;
+    document.getElementById("summaryContent").innerHTML = html;
+    document.getElementById("summaryBox").style.display = "block";
+}
+
+function exportDetailedExcel(serviceTarget) {
+    let csv = "Società;Giorno;Location;Inizio;Fine;Pausa pranzo;Straordinari;Lordo\n";
+    let found = false;
+    let runningTotal = 0;
+    for (let i = 1; i <= 31; i++) {
+        const item = JSON.parse(localStorage.getItem(`${currentYear}-${currentMonth+1}-${i}`));
+        if (item && (serviceTarget === 'tutti' || item.client === serviceTarget)) {
+            const s = getStats(item.startTime, item.endTime, item.lunchBreak);
+            csv += `${item.client};${i}/${currentMonth+1};${item.location};${item.startTime};${item.endTime};${item.lunchBreak};${s.stra.toFixed(1)};${s.lordo.toFixed(2)}\n`;
+            runningTotal += s.lordo;
+            found = true;
+        }
+    }
+    if(!found) return alert("Nessun dato.");
+    
+    // Riga Totale nel CSV
+    csv += `\n;;;;;;TOTALE LORDO;${runningTotal.toFixed(2)}\n`;
+
+    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Export_${serviceTarget.replace(/ /g, "_")}.csv`;
+    link.click();
+}
+
+function showAnnualSummary() {
+    closeAll(); let totalNetto = 0, totalGG = 0, monthCount = new Set();
+    for (let m=1; m<=12; m++) {
+        for (let d=1; d<=31; d++) {
+            const data = JSON.parse(localStorage.getItem(`${currentYear}-${m}-${d}`));
+            if(data) { const s = getStats(data.startTime, data.endTime, data.lunchBreak); totalNetto += s.netto; totalGG++; monthCount.add(m); }
+        }
+    }
+    const media = monthCount.size ? (totalNetto / monthCount.size) : 0;
+    document.getElementById("annualContent").innerHTML = `<div style="padding:15px; background:#e8f0fe; border-radius:10px;"><p>Giornate: <b>${totalGG}</b></p><p>Netto Totale: <b>€${totalNetto.toFixed(2)}</b></p><p>Media Mensile: <b>€${media.toFixed(2)}</b></p></div>`;
+    document.getElementById("annualBox").style.display = "block";
+}
+
+monthSel.onchange = renderCalendar;
+renderCalendar();
+</script>
+</body>
+</html>
